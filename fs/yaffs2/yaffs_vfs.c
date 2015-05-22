@@ -738,7 +738,7 @@ static int yaffs_file_flush(struct file *file)
 
 	yaffs_gross_lock(dev);
 
-	yaffs_flush_file(obj, 1, 0, 0);
+	yaffs_flush_file(obj, 1, 0, 1);
 
 	yaffs_gross_unlock(dev);
 
@@ -768,7 +768,7 @@ static int yaffs_sync_object(struct file *file, struct dentry *dentry,
 	yaffs_trace(YAFFS_TRACE_OS | YAFFS_TRACE_SYNC,
 		"yaffs_sync_object");
 	yaffs_gross_lock(dev);
-	yaffs_flush_file(obj, 1, datasync, 0);
+	yaffs_flush_file(obj, 1, datasync, 1);
 	yaffs_gross_unlock(dev);
 	return 0;
 }
@@ -778,13 +778,13 @@ static int yaffs_sync_object(struct file *file, struct dentry *dentry,
 static const struct file_operations yaffs_file_operations = {
 	.read = do_sync_read,
 	.write = do_sync_write,
-	.aio_read = generic_file_aio_read,
-	.aio_write = generic_file_aio_write,
+	.aio_read = generic_file_read_iter,
+	.aio_write = generic_file_write_iter,
 	.mmap = generic_file_mmap,
 	.flush = yaffs_file_flush,
 	.fsync = yaffs_sync_object,
 	.splice_read = generic_file_splice_read,
-	.splice_write = generic_file_splice_write,
+	.splice_write = iter_file_splice_write,
 	.llseek = generic_file_llseek,
 };
 
@@ -2187,7 +2187,7 @@ static void yaffs_flush_inodes(struct super_block *sb)
 			yaffs_trace(YAFFS_TRACE_OS,
 				"flushing obj %d",
 				obj->obj_id);
-			yaffs_flush_file(obj, 1, 0, 0);
+			yaffs_flush_file(obj, 1, 0, 1);
 		}
 	}
 }
