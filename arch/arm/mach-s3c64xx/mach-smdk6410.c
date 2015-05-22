@@ -754,7 +754,7 @@ static void __init smdk6410_machine_init(void)
 
         /* initialize the NAND flash */
     #ifdef CONFIG_MTD_NAND_S3C
-        s3c_device_nand.name = “s3c6410-nand”;
+        s3c_device_nand.name = "s3c6410-nand";
     #endif
         s3c_nand_set_platdata(&smdk6410_nand_info);
 
