@@ -33,6 +33,12 @@
 #include <linux/pwm_backlight.h>
 #include <linux/platform_data/s3c-hsotg.h>
 
+// NAND by Robin
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
+#include <linux/platform_data/mtd-nand-s3c2410.h>
+#include <linux/dm9000.h>
+
 #ifdef CONFIG_SMDK6410_WM1190_EV1
 #include <linux/mfd/wm8350/core.h>
 #include <linux/mfd/wm8350/pmic.h>
@@ -110,6 +116,84 @@ static struct s3c2410_uartcfg smdk6410_uartcfgs[] __initdata = {
 		.ufcon	     = UFCON,
 	},
 };
+
+/* NAND Flash Setup. */
+// Partition Definition
+struct mtd_partition smdk6410_nand_part[] = {
+    {
+            .name        = "bootloader",
+            .offset        = 0,
+            .size        = (6*SZ_1M),
+            .mask_flags    = MTD_CAP_NANDFLASH,
+    },
+    {
+            .name        = "kernel",
+            .offset        = MTDPART_OFS_APPEND,
+            .size        = (4*SZ_1M),
+    },
+    {
+            .name        = "filesystem",
+            .offset        = MTDPART_OFS_APPEND,
+            .size        = MTDPART_SIZ_FULL,
+    }
+};
+
+// NAND Chip Definition
+static struct s3c2410_nand_set smdk6410_nand_sets[] = {
+    [0] = {
+        .name        = "nand",
+        .nr_chips    = 1,
+        .nr_partitions    = ARRAY_SIZE(smdk6410_nand_part),
+        .partitions    = smdk6410_nand_part,
+    },
+};
+
+// The Whole NAND Platform Definition
+static struct s3c2410_platform_nand smdk6410_nand_info = {
+    .tacls        = 25,
+    .twrph0        = 55,
+    .twrph1        = 40,
+    .nr_sets    = ARRAY_SIZE(smdk6410_nand_sets),
+    .sets        = smdk6410_nand_sets,
+};
+
+/* DM9000 Device Setup */
+
+#ifdef CONFIG_DM9000
+#define S3C64XX_PA_DM9000    (0x31000000)
+
+static struct resource s3c_dm9000_resources[] = {
+      [0] = {
+          .start  = S3C64XX_PA_DM9000 + 0x300,
+          .end    = S3C64XX_PA_DM9000 + 0x300 + 0x4 - 1,
+          .flags  = IORESOURCE_MEM,
+      },
+      [1] = {
+          .start = IRQ_EINT(0),
+          .end   = IRQ_EINT(0),
+          .flags = IORESOURCE_IRQ,
+    }
+};
+
+static struct dm9000_plat_data dm9000_setup = {
+    .flags          = DM9000_PLATF_16BITONLY,
+    .dev_addr  = {0x00,0xe0,0x4a,0xbc,0x15,0xe7}
+};
+
+
+struct platform_device s3c_device_dm9000 = {
+      .name           = "dm9000",
+      .id             =  0,
+      .num_resources  = ARRAY_SIZE(s3c_dm9000_resources),
+      .resource       = s3c_dm9000_resources,
+      .dev ={
+            .platform_data = &dm9000_setup,
+      }
+};
+
+EXPORT_SYMBOL(s3c_device_dm9000);
+#endif
+
 
 /* framebuffer and LCD setup. */
 
@@ -278,7 +362,12 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 	&s3c_device_usb_hsotg,
 	&s3c64xx_device_iisv4,
 	&samsung_device_keypad,
-
+#ifdef CONFIG_MTD_NAND_S3C
+        &s3c_device_nand,
+#endif
+#ifdef CONFIG_DM9000
+        &s3c_device_dm9000,
+#endif
 #ifdef CONFIG_REGULATOR
 	&smdk6410_b_pwr_5v,
 #endif
@@ -662,6 +751,12 @@ static void __init smdk6410_machine_init(void)
 	s3c_hsotg_set_platdata(&smdk6410_hsotg_pdata);
 
 	samsung_keypad_set_platdata(&smdk6410_keypad_data);
+
+        /* initialize the NAND flash */
+    #ifdef CONFIG_MTD_NAND_S3C
+        s3c_device_nand.name = “s3c6410-nand”;
+    #endif
+        s3c_nand_set_platdata(&smdk6410_nand_info);
 
 	s3c24xx_ts_set_platdata(NULL);
 
